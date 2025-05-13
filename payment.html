@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2em;
+      background-color: #f3f3f3;
+      margin: 0;
+      color: #333;
+    }
+
+    h2 {
+      color: #333;
+      text-align: center;
+    }
+
+    select, input, button {
+      margin: 0.5em 0;
+      padding: 0.75em;
+      width: 100%;
+      max-width: 400px;
+      display: block;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      background-color: #35424a;
+      color: white;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #5c6c72;
+    }
+
+    .form-section {
+      display: none;
+      margin-top: 1em;
+      background-color: #fff;
+      padding: 2em;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 500px;
+      margin: 2em auto;
+    }
+
+    .visible {
+      display: block;
+    }
+
+    .form-section h3 {
+      color: #35424a;
+      text-align: center;
+      margin-bottom: 1em;
+    }
+
+    .form-section label {
+      font-weight: bold;
+    }
+
+    .form-section input, .form-section select {
+      margin-bottom: 1em;
+      padding: 1em;
+      font-size: 1em;
+    }
+
+    .form-section button {
+      width: 100%;
+      padding: 1em;
+      font-size: 1.2em;
+    }
+
+    .form-section hr {
+      margin-top: 1.5em;
+      border: none;
+      border-top: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Select Payment Type</h2>
+  <select id="paymentType">
+    <option value="">-- Choose Payment Type --</option>
+    <option value="standard">Standard Payment</option>
+    <option value="seasonal">Seasonal Payment</option>
+  </select>
+
+  <!-- Standard Payment Form -->
+  <form id="standardForm" class="form-section">
+    <h3>Standard Payment</h3>
+    <input type="hidden" name="type" value="standard">
+    <label for="post_id">Post ID</label>
+    <input name="post_id" type="number" id="post_id" placeholder="Post ID" required>
+    
+    <label for="user_id">User ID</label>
+    <input name="user_id" type="number" id="user_id" placeholder="User ID" required>
+
+    <label for="method">Payment Method (e.g., Card)</label>
+    <input name="method" type="text" id="method" placeholder="Payment Method" required>
+    
+    <label for="amount_paid">Amount Paid</label>
+    <input name="amount_paid" type="number" step="0.01" id="amount_paid" placeholder="Amount Paid" required>
+    
+    <label for="date">Date</label>
+    <input name="date" type="date" id="date" required>
+    
+    <label for="due">Due Date</label>
+    <input name="due" type="date" id="due" required>
+    
+    <button type="submit">Submit Standard Payment</button>
+  </form>
+
+  <!-- Seasonal Payment Form -->
+  <form id="seasonalForm" class="form-section">
+    <h3>Seasonal Payment</h3>
+    <input type="hidden" name="type" value="seasonal">
+    
+    <label for="cost_per_day">Cost per Day</label>
+    <input name="cost_per_day" type="number" step="0.01" id="cost_per_day" placeholder="Cost per Day" required>
+    
+    <label for="start_date">Start Date</label>
+    <input name="start_date" type="date" id="start_date" required>
+    
+    <label for="end_date">End Date</label>
+    <input name="end_date" type="date" id="end_date" required>
+    
+    <label for="duration">Duration (Days)</label>
+    <input name="duration" type="number" id="duration" placeholder="Duration in Days" required>
+    
+    <button type="submit">Submit Seasonal Payment</button>
+  </form>
+
+  <script>
+    const typeSelector = document.getElementById('paymentType');
+    const standardForm = document.getElementById('standardForm');
+    const seasonalForm = document.getElementById('seasonalForm');
+
+    typeSelector.addEventListener('change', () => {
+      standardForm.classList.remove('visible');
+      seasonalForm.classList.remove('visible');
+
+      if (typeSelector.value === 'standard') {
+        standardForm.classList.add('visible');
+      } else if (typeSelector.value === 'seasonal') {
+        seasonalForm.classList.add('visible');
+      }
+    });
+
+    const handleSubmit = (form) => {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+
+        fetch('payment_handler.php', {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("Payment Successful!");
+            const fields = Object.fromEntries(formData.entries());
+            fields["Payment ID"] = data.payment_id;
+            fields["Receipt ID"] = data.receipt_id;
+            fields["Payment Status"] = data.payment_status;
+            generatePDF(data.type === "standard" ? "Standard Payment" : "Seasonal Payment", fields);
+          } else {
+            alert("Error: " + data.error);
+          }
+        })
+        .catch(err => alert("Fetch error: " + err));
+      });
+    };
+
+    handleSubmit(standardForm);
+    handleSubmit(seasonalForm);
+
+    function generatePDF(title, fields) {
+      const pdfWindow = window.open("", "_blank");
+      const date = new Date().toLocaleString();
+
+      let content = `<h1>${title} Receipt</h1><p><strong>Generated:</strong> ${date}</p><hr><ul>`;
+      for (let key in fields) {
+        content += `<li><strong>${key}:</strong> ${fields[key]}</li>`;
+      }
+      content += "</ul>";
+
+      pdfWindow.document.write(`
+        <html><head><title>Receipt</title></head>
+        <body style="font-family:Arial;padding:2em;">${content}</body></html>
+      `);
+      pdfWindow.document.close();
+    }
+  </script>
+
+</body>
+</html>
